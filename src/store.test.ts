@@ -1801,9 +1801,9 @@ describe("LlamaCpp Integration", () => {
       displayPath: "doc1.md",
     });
 
-    // Create vector table and insert a vector
-    store.ensureVecTable(768);
-    const embedding = Array(768).fill(0).map(() => Math.random());
+    // Create vector table and insert a vector (1024 dimensions for bge-m3)
+    store.ensureVecTable(1024);
+    const embedding = Array(1024).fill(0).map(() => Math.random());
     store.db.prepare(`INSERT INTO content_vectors (hash, seq, pos, model, embedded_at) VALUES (?, 0, 0, 'test', ?)`).run(hash, new Date().toISOString());
     store.db.prepare(`INSERT INTO vectors_vec (hash_seq, embedding) VALUES (?, ?)`).run(`${hash}_0`, new Float32Array(embedding));
 
@@ -1836,10 +1836,10 @@ describe("LlamaCpp Integration", () => {
       body: "Content in collection two",
     });
 
-    // Create vectors_vec table with correct dimensions (768 for embeddinggemma)
-    store.ensureVecTable(768);
-    const embedding1 = Array(768).fill(0).map(() => Math.random());
-    const embedding2 = Array(768).fill(0).map(() => Math.random());
+    // Create vectors_vec table with correct dimensions (1024 for bge-m3)
+    store.ensureVecTable(1024);
+    const embedding1 = Array(1024).fill(0).map(() => Math.random());
+    const embedding2 = Array(1024).fill(0).map(() => Math.random());
     store.db.prepare(`INSERT INTO content_vectors (hash, seq, pos, model, embedded_at) VALUES (?, 0, 0, 'test', ?)`).run(hash1, new Date().toISOString());
     store.db.prepare(`INSERT INTO content_vectors (hash, seq, pos, model, embedded_at) VALUES (?, 0, 0, 'test', ?)`).run(hash2, new Date().toISOString());
     store.db.prepare(`INSERT INTO vectors_vec (hash_seq, embedding) VALUES (?, ?)`).run(`${hash1}_0`, new Float32Array(embedding1));
@@ -1873,9 +1873,9 @@ describe("LlamaCpp Integration", () => {
       displayPath: "regression.md",
     });
 
-    // Create vector table and insert a test vector
-    store.ensureVecTable(768);
-    const embedding = Array(768).fill(0).map(() => Math.random());
+    // Create vector table and insert a test vector (1024 dimensions for bge-m3)
+    store.ensureVecTable(1024);
+    const embedding = Array(1024).fill(0).map(() => Math.random());
     store.db.prepare(`INSERT INTO content_vectors (hash, seq, pos, model, embedded_at) VALUES (?, 0, 0, 'test', ?)`).run(hash, new Date().toISOString());
     store.db.prepare(`INSERT INTO vectors_vec (hash_seq, embedding) VALUES (?, ?)`).run(`${hash}_0`, new Float32Array(embedding));
 
@@ -1899,11 +1899,11 @@ describe("LlamaCpp Integration", () => {
     const queries = await store.expandQuery("test query");
     expect(queries).toContain("test query");
     expect(queries[0]).toBe("test query");
-    // LlamaCpp returns original + variations
+    // ApiClient returns original + variations
     expect(queries.length).toBeGreaterThanOrEqual(1);
 
     await cleanupTestDb(store);
-  }, 30000);
+  }, 60000); // 60s timeout for API calls
 
   test("expandQuery caches results", async () => {
     const store = await createTestStore();

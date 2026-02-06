@@ -16,8 +16,7 @@ import { Glob } from "bun";
 import { realpathSync, statSync } from "node:fs";
 import * as sqliteVec from "sqlite-vec";
 import {
-  LlamaCpp,
-  getDefaultLlamaCpp,
+  getDefaultApiClient,
   formatQueryForEmbedding,
   formatDocForEmbedding,
   type RerankDocument,
@@ -1241,19 +1240,19 @@ export function chunkDocument(content: string, maxChars: number = CHUNK_SIZE_CHA
 }
 
 /**
- * Chunk a document by actual token count using the LLM tokenizer.
- * More accurate than character-based chunking but requires async.
+ * Chunk a document by estimated token count.
+ * Uses character-based estimation (approx 4 chars per token for English).
+ * Previously used LLM tokenizer, but now simplified for API-only mode.
  */
 export async function chunkDocumentByTokens(
   content: string,
   maxTokens: number = CHUNK_SIZE_TOKENS,
   overlapTokens: number = CHUNK_OVERLAP_TOKENS
 ): Promise<{ text: string; pos: number; tokens: number }[]> {
-  const llm = getDefaultLlamaCpp();
-
-  // Tokenize once upfront
-  const allTokens = await llm.tokenize(content);
-  const totalTokens = allTokens.length;
+  // Estimate tokens: ~4 characters per token for English text
+  const CHARS_PER_TOKEN = 4;
+  const estimatedTokens = Math.ceil(content.length / CHARS_PER_TOKEN);
+  const totalTokens = estimatedTokens;
 
   if (totalTokens <= maxTokens) {
     return [{ text: content, pos: 0, tokens: totalTokens }];
@@ -1261,16 +1260,18 @@ export async function chunkDocumentByTokens(
 
   const chunks: { text: string; pos: number; tokens: number }[] = [];
   const step = maxTokens - overlapTokens;
-  const avgCharsPerToken = content.length / totalTokens;
-  let tokenPos = 0;
+  const maxChars = maxTokens * CHARS_PER_TOKEN;
+  const overlapChars = overlapTokens * CHARS_PER_TOKEN;
+  const stepChars = maxChars - overlapChars;
+  
+  let charPos = 0;
 
-  while (tokenPos < totalTokens) {
-    const chunkEnd = Math.min(tokenPos + maxTokens, totalTokens);
-    const chunkTokens = allTokens.slice(tokenPos, chunkEnd);
-    let chunkText = await llm.detokenize(chunkTokens);
+  while (charPos < content.length) {
+    const chunkEndChar = Math.min(charPos + maxChars, content.length);
+    let chunkText = content.slice(charPos, chunkEndChar);
 
     // Find a good break point if not at end of document
-    if (chunkEnd < totalTokens) {
+    if (chunkEndChar < content.length) {
       const searchStart = Math.floor(chunkText.length * 0.7);
       const searchSlice = chunkText.slice(searchStart);
 
@@ -1302,15 +1303,12 @@ export async function chunkDocumentByTokens(
       }
     }
 
-    // Approximate character position based on token position
-    const charPos = Math.floor(tokenPos * avgCharsPerToken);
-    chunks.push({ text: chunkText, pos: charPos, tokens: chunkTokens.length });
+    // Estimate tokens for this chunk
+    const chunkTokens = Math.ceil(chunkText.length / CHARS_PER_TOKEN);
+    chunks.push({ text: chunkText, pos: charPos, tokens: chunkTokens });
 
-    // Move forward
-    if (chunkEnd >= totalTokens) break;
-
-    // Advance by step tokens (maxTokens - overlap)
-    tokenPos += step;
+    // Advance by step characters
+    charPos += stepChars;
   }
 
   return chunks;
@@ -1997,7 +1995,7 @@ async function getEmbedding(text: string, model: string, isQuery: boolean, sessi
   const formattedText = isQuery ? formatQueryForEmbedding(text) : formatDocForEmbedding(text);
   const result = session
     ? await session.embed(formattedText, { model, isQuery })
-    : await getDefaultLlamaCpp().embed(formattedText, { model, isQuery });
+    : await getDefaultApiClient().embed(formattedText, { model, isQuery });
   return result?.embedding || null;
 }
 
@@ -2059,8 +2057,8 @@ export async function expandQuery(query: string, model: string = DEFAULT_QUERY_M
     return [query, ...lines.slice(0, 2)];
   }
 
-  const llm = getDefaultLlamaCpp();
-  // Note: LlamaCpp uses hardcoded model, model parameter is ignored
+  const llm = getDefaultApiClient();
+  // Note: API client uses configured model from api.yml
   const results = await llm.expandQuery(query);
   const queryTexts = results.map(r => r.text);
 
@@ -2092,9 +2090,9 @@ export async function rerank(query: string, documents: { file: string; text: str
     }
   }
 
-  // Rerank uncached documents using LlamaCpp
+  // Rerank uncached documents using API client
   if (uncachedDocs.length > 0) {
-    const llm = getDefaultLlamaCpp();
+    const llm = getDefaultApiClient();
     const rerankResult = await llm.rerank(query, uncachedDocs, { model });
 
     // Cache results

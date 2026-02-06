@@ -2,13 +2,19 @@
 
 An on-device search engine for everything you need to remember. Index your markdown notes, meeting transcripts, documentation, and knowledge bases. Search with keywords or natural language. Ideal for your agentic flows.
 
-QMD combines BM25 full-text search, vector semantic search, and LLM re-ranking—all running locally via node-llama-cpp with GGUF models.
+QMD combines BM25 full-text search, vector semantic search, and LLM reranking using cloud API services (SiliconFlow).
+
+> **⚠️ Breaking Change:** QMD now uses cloud APIs instead of local models. This requires API configuration. See [Configuration](#configuration) below.
 
 ## Quick Start
 
 ```sh
 # Install globally
 bun install -g https://github.com/tobi/qmd
+
+# Configure API access (required)
+qmd init
+# Then edit ~/.config/qmd/api.yml with your SiliconFlow API key
 
 # Create collections for your notes, docs, and meeting transcripts
 qmd collection add ~/notes --name notes
@@ -103,6 +109,64 @@ Or configure MCP manually in `~/.claude/settings.json`:
   }
 }
 ```
+
+## Configuration
+
+QMD requires API configuration to access cloud services for embeddings, query expansion, and reranking.
+
+### Initial Setup
+
+Run `qmd init` to create a configuration template:
+
+```sh
+qmd init
+```
+
+This creates `~/.config/qmd/api.yml` with the following structure:
+
+```yaml
+# QMD API Configuration
+embedding:
+  base_url: https://api.siliconflow.cn/v1
+  api_key: sk-YOUR_API_KEY_HERE
+  model: BAAI/bge-m3
+  dimensions: 1024  # Must match the model's output dimensions
+
+chat:
+  base_url: https://api.siliconflow.cn/v1
+  api_key: sk-YOUR_API_KEY_HERE
+  model: Qwen/Qwen2.5-7B-Instruct
+
+rerank:
+  base_url: https://api.siliconflow.cn/v1
+  api_key: sk-YOUR_API_KEY_HERE
+  model: BAAI/bge-reranker-v2-m3
+  provider: siliconflow
+
+# HTTP client settings
+timeout: 30        # Request timeout in seconds
+max_retries: 3     # Maximum retry attempts for failed requests
+retry_delay: 1     # Initial retry delay in seconds (exponential backoff)
+```
+
+### Get Your API Key
+
+1. Sign up at [SiliconFlow](https://cloud.siliconflow.cn/)
+2. Get your API key from the dashboard
+3. Replace `sk-YOUR_API_KEY_HERE` in `~/.config/qmd/api.yml`
+
+### Migration from Local Models
+
+**Breaking Change:** QMD no longer uses node-llama-cpp or local GGUF models. All inference now happens via cloud APIs.
+
+If you're upgrading from a previous version:
+
+1. Run `qmd init` to create configuration file
+2. Add your API credentials
+3. Run `qmd embed` to regenerate embeddings (existing embeddings may be incompatible if model dimensions differ)
+4. Existing BM25 search continues working without re-indexing
+
+The `qmd pull` command has been removed (models are now managed by the API provider).
 
 ## Architecture
 
@@ -212,17 +276,17 @@ The `query` command uses **Reciprocal Rank Fusion (RRF)** with position-aware bl
   brew install sqlite
   ```
 
-### GGUF Models (via node-llama-cpp)
+### Cloud API Models
 
-QMD uses three local GGUF models (auto-downloaded on first use):
+QMD uses cloud API services (SiliconFlow) for LLM operations:
 
-| Model | Purpose | Size |
-|-------|---------|------|
-| `embeddinggemma-300M-Q8_0` | Vector embeddings | ~300MB |
-| `qwen3-reranker-0.6b-q8_0` | Re-ranking | ~640MB |
-| `qmd-query-expansion-1.7B-q4_k_m` | Query expansion (fine-tuned) | ~1.1GB |
+| Model | Purpose | Provider |
+|-------|---------|----------|
+| `BAAI/bge-m3` | Vector embeddings (1024 dims) | SiliconFlow |
+| `BAAI/bge-reranker-v2-m3` | Document reranking | SiliconFlow |
+| `Qwen/Qwen2.5-7B-Instruct` | Query expansion | SiliconFlow |
 
-Models are downloaded from HuggingFace and cached in `~/.cache/qmd/models/`.
+All models are managed by the API provider (no local downloads or caching).
 
 ## Installation
 
@@ -479,7 +543,7 @@ Collection ──► Glob Pattern ──► Markdown Files ──► Parse Title
 Documents are chunked into 800-token pieces with 15% overlap:
 
 ```
-Document ──► Chunk (800 tokens) ──► Format each chunk ──► node-llama-cpp ──► Store Vectors
+Document ──► Chunk (800 tokens) ──► Format each chunk ──► API Client ──► Store Vectors
                 │                    "title | text"        embedBatch()
                 │
                 └─► Chunks stored with:
@@ -528,15 +592,24 @@ Query ──► LLM Expansion ──► [Original, Variant 1, Variant 2]
 
 ## Model Configuration
 
-Models are configured in `src/llm.ts` as HuggingFace URIs:
+Models are configured in `~/.config/qmd/api.yml`:
 
-```typescript
-const DEFAULT_EMBED_MODEL = "hf:ggml-org/embeddinggemma-300M-GGUF/embeddinggemma-300M-Q8_0.gguf";
-const DEFAULT_RERANK_MODEL = "hf:ggml-org/Qwen3-Reranker-0.6B-Q8_0-GGUF/qwen3-reranker-0.6b-q8_0.gguf";
-const DEFAULT_GENERATE_MODEL = "hf:tobil/qmd-query-expansion-1.7B-gguf/qmd-query-expansion-1.7B-q4_k_m.gguf";
+```yaml
+embedding:
+  model: BAAI/bge-m3
+  dimensions: 1024
+
+chat:
+  model: Qwen/Qwen2.5-7B-Instruct
+
+rerank:
+  model: BAAI/bge-reranker-v2-m3
+  provider: siliconflow
 ```
 
-### EmbeddingGemma Prompt Format
+### Embedding Format
+
+QMD uses task-specific prompt formatting for embeddings:
 
 ```
 // For queries
@@ -546,13 +619,13 @@ const DEFAULT_GENERATE_MODEL = "hf:tobil/qmd-query-expansion-1.7B-gguf/qmd-query
 "title: {title} | text: {content}"
 ```
 
-### Qwen3-Reranker
+### Query Expansion
 
-Uses node-llama-cpp's `createRankingContext()` and `rankAndSort()` API for cross-encoder reranking. Returns documents sorted by relevance score (0.0 - 1.0).
+Uses OpenAI Function Calling API with structured output to generate query variations (lexical, semantic, hypothetical document).
 
-### Qwen3 (Query Expansion)
+### Reranking
 
-Used for generating query variations via `LlamaChatSession`.
+Uses SiliconFlow's rerank API with BAAI/bge-reranker-v2-m3 model for cross-encoder reranking. Returns documents sorted by relevance score.
 
 ## License
 

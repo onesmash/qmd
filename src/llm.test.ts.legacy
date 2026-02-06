@@ -9,7 +9,6 @@
 
 import { describe, test, expect, beforeAll, afterAll } from "bun:test";
 import {
-  LlamaCpp,
   getDefaultLlamaCpp,
   disposeDefaultLlamaCpp,
   withLLMSession,

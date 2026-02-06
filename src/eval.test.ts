@@ -176,7 +176,7 @@ describe("Vector Search", () => {
 
     // Generate embeddings for test documents
     const llm = getDefaultLlamaCpp();
-    store.ensureVecTable(768); // embeddinggemma uses 768 dimensions
+    store.ensureVecTable(1024); // bge-m3 uses 1024 dimensions
 
     const evalDocsDir = join(import.meta.dir, "../test/eval-docs");
     const files = readdirSync(evalDocsDir).filter(f => f.endsWith(".md"));

@@ -2,7 +2,8 @@
 import { Database } from "bun:sqlite";
 import { Glob, $ } from "bun";
 import { parseArgs } from "util";
-import { readFileSync, statSync } from "fs";
+import { readFileSync, statSync, writeFileSync, mkdirSync, existsSync } from "fs";
+import { join } from "path";
 import * as sqliteVec from "sqlite-vec";
 import {
   getPwd,
@@ -66,7 +67,7 @@ import {
   createStore,
   getDefaultDbPath,
 } from "./store.js";
-import { getDefaultLlamaCpp, disposeDefaultLlamaCpp, withLLMSession, pullModels, DEFAULT_EMBED_MODEL_URI, DEFAULT_GENERATE_MODEL_URI, DEFAULT_RERANK_MODEL_URI, DEFAULT_MODEL_CACHE_DIR, type ILLMSession, type RerankDocument, type Queryable, type QueryType } from "./llm.js";
+import { getDefaultApiClient, disposeDefaultApiClient, withLLMSession, type ILLMSession, type RerankDocument, type Queryable, type QueryType } from "./llm.js";
 import type { SearchResult, RankedResult } from "./store.js";
 import {
   formatSearchResults,
@@ -247,7 +248,7 @@ async function rerank(query: string, documents: { file: string; text: string }[]
 
   const result = session
     ? await session.rerank(query, rerankDocs)
-    : await getDefaultLlamaCpp().rerank(query, rerankDocs);
+    : await getDefaultApiClient().rerank(query, rerankDocs);
 
   progress.clear();
   process.stderr.write("\n");
@@ -2039,7 +2040,7 @@ async function expandQueryStructured(query: string, includeLexical: boolean = tr
 
   const queryables = session
     ? await session.expandQuery(query, { includeLexical, context })
-    : await getDefaultLlamaCpp().expandQuery(query, { includeLexical, context });
+    : await getDefaultApiClient().expandQuery(query, { includeLexical, context });
 
   // Log the expansion as a tree
   const lines: string[] = [];
@@ -2598,29 +2599,51 @@ if (import.meta.main) {
       await updateCollections();
       break;
 
+    case "init": {
+      const { getConfigPath, CONFIG_TEMPLATE } = await import("./api-config.js");
+      const configPath = getConfigPath();
+      
+      // Check if config already exists
+      if (existsSync(configPath)) {
+        console.log(`${c.yellow}Configuration file already exists: ${configPath}${c.reset}`);
+        console.log(`\nOverwrite? (y/n)`);
+        
+        // Read user input
+        const answer = await new Promise<string>((resolve) => {
+          process.stdin.once("data", (data) => {
+            resolve(data.toString().trim().toLowerCase());
+          });
+        });
+        
+        if (answer !== "y" && answer !== "yes") {
+          console.log("Cancelled.");
+          process.exit(0);
+        }
+      }
+      
+      // Create config directory if needed
+      const configDir = join(configPath, "..");
+      if (!existsSync(configDir)) {
+        mkdirSync(configDir, { recursive: true });
+      }
+      
+      // Write template
+      writeFileSync(configPath, CONFIG_TEMPLATE, "utf-8");
+      
+      console.log(`${c.green}✓${c.reset} Created configuration template at: ${c.bold}${configPath}${c.reset}\n`);
+      console.log(`${c.bold}Next steps:${c.reset}`);
+      console.log(`1. Get your SiliconFlow API key at: ${c.cyan}https://cloud.siliconflow.cn/${c.reset}`);
+      console.log(`2. Edit ${c.bold}${configPath}${c.reset} with your API credentials`);
+      console.log(`3. Run ${c.bold}qmd embed${c.reset} to generate embeddings`);
+      break;
+    }
+
     case "embed":
       await vectorIndex(DEFAULT_EMBED_MODEL, !!cli.values.force);
       break;
 
-    case "pull": {
-      const refresh = cli.values.refresh === undefined ? false : Boolean(cli.values.refresh);
-      const models = [
-        DEFAULT_EMBED_MODEL_URI,
-        DEFAULT_GENERATE_MODEL_URI,
-        DEFAULT_RERANK_MODEL_URI,
-      ];
-      console.log(`${c.bold}Pulling models${c.reset}`);
-      const results = await pullModels(models, {
-        refresh,
-        cacheDir: DEFAULT_MODEL_CACHE_DIR,
-      });
-      for (const result of results) {
-        const size = formatBytes(result.sizeBytes);
-        const note = result.refreshed ? "refreshed" : "cached/checked";
-        console.log(`- ${result.model} -> ${result.path} (${size}, ${note})`);
-      }
-      break;
-    }
+    // "pull" command removed - models are now managed by API provider
+    // Run "qmd init" to configure API access
 
     case "search":
       if (!cli.query) {
@@ -2692,7 +2715,7 @@ if (import.meta.main) {
   }
 
   if (cli.command !== "mcp") {
-    await disposeDefaultLlamaCpp();
+    await disposeDefaultApiClient();
     process.exit(0);
   }
 

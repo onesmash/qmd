@@ -100,8 +100,8 @@ function initTestDatabase(db: Database): void {
     END
   `);
 
-  // Create vector table
-  db.exec(`CREATE VIRTUAL TABLE IF NOT EXISTS vectors_vec USING vec0(hash_seq TEXT PRIMARY KEY, embedding float[768] distance_metric=cosine)`);
+  // Create vector table (1024 dimensions for bge-m3)
+  db.exec(`CREATE VIRTUAL TABLE IF NOT EXISTS vectors_vec USING vec0(hash_seq TEXT PRIMARY KEY, embedding float[1024] distance_metric=cosine)`);
 }
 
 function seedTestData(db: Database): void {
@@ -158,9 +158,9 @@ function seedTestData(db: Database): void {
     `).run(doc.path, doc.title, doc.hash, now, now);
   }
 
-  // Add embeddings for vector search
-  const embedding = new Float32Array(768);
-  for (let i = 0; i < 768; i++) embedding[i] = Math.random();
+  // Add embeddings for vector search (1024 dimensions for bge-m3)
+  const embedding = new Float32Array(1024);
+  for (let i = 0; i < 1024; i++) embedding[i] = Math.random();
 
   for (const doc of docs.slice(0, 4)) { // Skip large file for embeddings
     db.prepare(`INSERT INTO content_vectors (hash, seq, pos, model, embedded_at) VALUES (?, 0, 0, 'embeddinggemma', ?)`).run(doc.hash, now);
@@ -326,7 +326,7 @@ describe("MCP Server", () => {
       // Always returns at least the original query, may have more if generation succeeds
       expect(queries.length).toBeGreaterThanOrEqual(1);
       expect(queries[0]).toBe("api documentation");
-    }, 30000); // 30s timeout for model loading
+    }, 60000); // 60s timeout for API calls
 
     test("performs RRF fusion on multiple result lists", () => {
       const list1: RankedResult[] = [
@@ -355,9 +355,11 @@ describe("MCP Server", () => {
       expect(reranked[0]!.score).toBeGreaterThan(0);
     });
 
-    test("full hybrid search pipeline", async () => {
-      // Simulate full qmd_query flow
-      const query = "meeting notes";
+    test(
+      "full hybrid search pipeline",
+      async () => {
+        // Simulate full qmd_query flow (this test calls multiple APIs and needs more time)
+        const query = "meeting notes";
       const queries = await expandQuery(query, DEFAULT_QUERY_MODEL, testDb);
 
       const rankedLists: RankedResult[][] = [];
@@ -387,8 +389,10 @@ describe("MCP Server", () => {
         testDb
       );
 
-      expect(reranked.length).toBeGreaterThan(0);
-    });
+        expect(reranked.length).toBeGreaterThan(0);
+      },
+      30000
+    ); // 30 second timeout for API calls
   });
 
   // ===========================================================================
