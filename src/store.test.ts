@@ -1857,7 +1857,7 @@ describe("LlamaCpp Integration", () => {
     await cleanupTestDb(store);
   });
 
-  // Regression test for https://github.com/tobi/qmd/pull/23
+  // Regression test for https://github.com/onesmash/qmd/pull/23
   // sqlite-vec virtual tables hang when combined with JOINs in the same query.
   // The fix uses a two-step approach: vector query first, then separate JOINs.
   test("searchVec uses two-step query to avoid sqlite-vec JOIN hang", async () => {

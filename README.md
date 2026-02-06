@@ -10,7 +10,7 @@ QMD combines BM25 full-text search, vector semantic search, and LLM reranking us
 
 ```sh
 # Install globally
-bun install -g https://github.com/tobi/qmd
+bun install -g https://github.com/onesmash/qmd
 
 # Configure API access (required)
 qmd init
@@ -299,7 +299,7 @@ Make sure `~/.bun/bin` is in your PATH.
 ### Development
 
 ```sh
-git clone https://github.com/tobi/qmd
+git clone https://github.com/onesmash/qmd
 cd qmd
 bun install
 bun link

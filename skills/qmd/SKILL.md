@@ -2,7 +2,7 @@
 name: qmd
 description: Search personal markdown knowledge bases, notes, meeting transcripts, and documentation using QMD - a local hybrid search engine. Combines BM25 keyword search, vector semantic search, and LLM re-ranking. Use when users ask to search notes, find documents, look up information in their knowledge base, retrieve meeting notes, or search documentation. Triggers on "search markdown files", "search my notes", "find in docs", "look up", "what did I write about", "meeting notes about".
 license: MIT
-compatibility: Requires qmd CLI or MCP server. Install via `bun install -g https://github.com/tobi/qmd`.
+compatibility: Requires qmd CLI or MCP server. Install via `bun install -g https://github.com/onesmash/qmd`.
 metadata:
   author: tobi
   version: "1.1.1"
@@ -15,7 +15,7 @@ QMD is a local, on-device search engine for markdown content. It indexes your no
 
 ## QMD Status
 
-!`qmd status 2>/dev/null || echo "Not installed. Run: bun install -g https://github.com/tobi/qmd"`
+!`qmd status 2>/dev/null || echo "Not installed. Run: bun install -g https://github.com/onesmash/qmd"`
 
 ## When to Use This Skill
 

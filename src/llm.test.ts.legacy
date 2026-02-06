@@ -177,7 +177,7 @@ describe("LlamaCpp Integration", () => {
       // each concurrent embedBatch call sees embedContext === null and creates its own
       // context, causing resource leaks and potential "Context is disposed" errors.
       //
-      // See: https://github.com/tobi/qmd/pull/54
+      // See: https://github.com/onesmash/qmd/pull/54
       //
       // The fix uses a promise guard to ensure only one context creation runs at a time.
       // We verify this by instrumenting createEmbeddingContext to count invocations.
