@@ -39,18 +39,18 @@ describe("api-config", () => {
 embedding:
   base_url: https://api.siliconflow.cn/v1
   api_key: sk-test123
-  model: BAAI/bge-m3
+  model: Qwen/Qwen3-Embedding-0.6B
   dimensions: 1024
 
 chat:
   base_url: https://api.siliconflow.cn/v1
   api_key: sk-test123
-  model: Qwen/Qwen2.5-7B-Instruct
+  model: Pro/deepseek-ai/DeepSeek-V3.2
 
 rerank:
   base_url: https://api.siliconflow.cn/v1
   api_key: sk-test123
-  model: BAAI/bge-reranker-v2-m3
+  model: Qwen/Qwen3-Reranker-0.6B
   provider: siliconflow
 
 timeout: 30
@@ -64,16 +64,16 @@ retry_delay: 1
         
         expect(config.embedding.base_url).toBe("https://api.siliconflow.cn/v1");
         expect(config.embedding.api_key).toBe("sk-test123");
-        expect(config.embedding.model).toBe("BAAI/bge-m3");
+        expect(config.embedding.model).toBe("Qwen/Qwen3-Embedding-0.6B");
         expect(config.embedding.dimensions).toBe(1024);
         
         expect(config.chat.base_url).toBe("https://api.siliconflow.cn/v1");
         expect(config.chat.api_key).toBe("sk-test123");
-        expect(config.chat.model).toBe("Qwen/Qwen2.5-7B-Instruct");
+        expect(config.chat.model).toBe("Pro/deepseek-ai/DeepSeek-V3.2");
         
         expect(config.rerank.base_url).toBe("https://api.siliconflow.cn/v1");
         expect(config.rerank.api_key).toBe("sk-test123");
-        expect(config.rerank.model).toBe("BAAI/bge-reranker-v2-m3");
+        expect(config.rerank.model).toBe("Qwen/Qwen3-Reranker-0.6B");
         expect(config.rerank.provider).toBe("siliconflow");
         
         expect(config.timeout).toBe(30);
@@ -89,26 +89,26 @@ retry_delay: 1
 embedding:
   base_url: https://api.siliconflow.cn/v1
   api_key: sk-test123
-  model: BAAI/bge-m3
+  model: Qwen/Qwen3-Embedding-0.6B
   dimensions: 1024
 
 chat:
   base_url: https://api.siliconflow.cn/v1
   api_key: sk-test123
-  model: Qwen/Qwen2.5-7B-Instruct
+  model: Pro/deepseek-ai/DeepSeek-V3.2
 
 rerank:
   base_url: https://api.siliconflow.cn/v1
   api_key: sk-test123
-  model: BAAI/bge-reranker-v2-m3
+  model: Qwen/Qwen3-Reranker-0.6B
   provider: siliconflow
 `;
 
       const configPath = createTempConfig(minimalConfig);
       try {
         const config = loadConfig(configPath);
-        
-        expect(config.timeout).toBe(30);
+
+        expect(config.timeout).toBe(60);
         expect(config.max_retries).toBe(3);
         expect(config.retry_delay).toBe(1);
       } finally {
@@ -144,18 +144,18 @@ embedding:
 embedding:
   base_url: https://api.siliconflow.cn/v1
   # api_key is missing
-  model: BAAI/bge-m3
+  model: Qwen/Qwen3-Embedding-0.6B
   dimensions: 1024
 
 chat:
   base_url: https://api.siliconflow.cn/v1
   api_key: sk-test123
-  model: Qwen/Qwen2.5-7B-Instruct
+  model: Pro/deepseek-ai/DeepSeek-V3.2
 
 rerank:
   base_url: https://api.siliconflow.cn/v1
   api_key: sk-test123
-  model: BAAI/bge-reranker-v2-m3
+  model: Qwen/Qwen3-Reranker-0.6B
   provider: siliconflow
 `;
 
@@ -173,18 +173,18 @@ rerank:
 embedding:
   base_url: https://api.siliconflow.cn/v1
   api_key: sk-test123
-  model: BAAI/bge-m3
+  model: Qwen/Qwen3-Embedding-0.6B
   dimensions: "1024"  # Should be number, not string
 
 chat:
   base_url: https://api.siliconflow.cn/v1
   api_key: sk-test123
-  model: Qwen/Qwen2.5-7B-Instruct
+  model: Pro/deepseek-ai/DeepSeek-V3.2
 
 rerank:
   base_url: https://api.siliconflow.cn/v1
   api_key: sk-test123
-  model: BAAI/bge-reranker-v2-m3
+  model: Qwen/Qwen3-Reranker-0.6B
   provider: siliconflow
 `;
 
@@ -202,18 +202,18 @@ rerank:
 embedding:
   base_url: not-a-valid-url
   api_key: sk-test123
-  model: BAAI/bge-m3
+  model: Qwen/Qwen3-Embedding-0.6B
   dimensions: 1024
 
 chat:
   base_url: https://api.siliconflow.cn/v1
   api_key: sk-test123
-  model: Qwen/Qwen2.5-7B-Instruct
+  model: Pro/deepseek-ai/DeepSeek-V3.2
 
 rerank:
   base_url: https://api.siliconflow.cn/v1
   api_key: sk-test123
-  model: BAAI/bge-reranker-v2-m3
+  model: Qwen/Qwen3-Reranker-0.6B
   provider: siliconflow
 `;
 
@@ -231,18 +231,18 @@ rerank:
 embedding:
   base_url: https://api.siliconflow.cn/v1
   api_key: sk-test123
-  model: BAAI/bge-m3
+  model: Qwen/Qwen3-Embedding-0.6B
   dimensions: 1024
 
 chat:
   base_url: https://api.siliconflow.cn/v1
   api_key: sk-test123
-  model: Qwen/Qwen2.5-7B-Instruct
+  model: Pro/deepseek-ai/DeepSeek-V3.2
 
 rerank:
   base_url: https://api.siliconflow.cn/v1
   api_key: sk-test123
-  model: BAAI/bge-reranker-v2-m3
+  model: Qwen/Qwen3-Reranker-0.6B
   provider: openai  # Invalid provider
 `;
 
@@ -260,18 +260,18 @@ rerank:
 embedding:
   base_url: https://api.siliconflow.cn/v1
   api_key: sk-test123
-  model: BAAI/bge-m3
+  model: Qwen/Qwen3-Embedding-0.6B
   dimensions: -1024  # Negative dimensions
 
 chat:
   base_url: https://api.siliconflow.cn/v1
   api_key: sk-test123
-  model: Qwen/Qwen2.5-7B-Instruct
+  model: Pro/deepseek-ai/DeepSeek-V3.2
 
 rerank:
   base_url: https://api.siliconflow.cn/v1
   api_key: sk-test123
-  model: BAAI/bge-reranker-v2-m3
+  model: Qwen/Qwen3-Reranker-0.6B
   provider: siliconflow
 `;
 

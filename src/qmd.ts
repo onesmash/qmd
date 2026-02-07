@@ -303,6 +303,20 @@ function showStatus(): void {
   console.log(`Index: ${dbPath}`);
   console.log(`Size:  ${formatBytes(indexSize)}\n`);
 
+  // Try to show configured models
+  try {
+    const { loadConfig } = require("./api-config.js");
+    const config = loadConfig();
+    console.log(`${c.bold}Models${c.reset}`);
+    console.log(`  Embedding: ${config.embedding.model}`);
+    console.log(`  Query:     ${config.chat.model}`);
+    console.log(`  Rerank:    ${config.rerank.model}`);
+    console.log();
+  } catch (error) {
+    console.log(`${c.yellow}Models: Configuration not found${c.reset}`);
+    console.log(`  Run ${c.bold}qmd init${c.reset} to configure API access\n`);
+  }
+
   console.log(`${c.bold}Documents${c.reset}`);
   console.log(`  Total:    ${totalDocs.count} files indexed`);
   console.log(`  Vectors:  ${vectorCount.count} embedded`);
@@ -2414,10 +2428,16 @@ function showHelp(): void {
   console.log("  --max-bytes <num>          - Skip files larger than N bytes (default: 10240)");
   console.log("  --json/--csv/--md/--xml/--files - Output format (same as search)");
   console.log("");
-  console.log("Models (auto-downloaded from HuggingFace):");
-  console.log("  Embedding: embeddinggemma-300M-Q8_0");
-  console.log("  Reranking: qwen3-reranker-0.6b-q8_0");
-  console.log("  Generation: Qwen3-0.6B-Q8_0");
+  console.log("Models (configured in ~/.config/qmd/api.yml):");
+  try {
+    const { loadConfig } = require("./api-config.js");
+    const config = loadConfig();
+    console.log(`  Embedding: ${config.embedding.model}`);
+    console.log(`  Reranking: ${config.rerank.model}`);
+    console.log(`  Query Expansion: ${config.chat.model}`);
+  } catch {
+    console.log("  (not configured - run 'qmd init' to set up API access)");
+  }
   console.log("");
   console.log(`Index: ${getDbPath()}`);
 }

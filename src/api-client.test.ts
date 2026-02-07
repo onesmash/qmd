@@ -114,15 +114,26 @@ describe("api-client", () => {
       globalThis.fetch = mock(
         (_url, options) =>
           new Promise((resolve, reject) => {
-            // Check if signal gets aborted within a short time
             const signal = options?.signal as AbortSignal;
+
+            // Check if signal is already aborted
+            if (signal?.aborted) {
+              const error = new Error("The operation was aborted");
+              error.name = "AbortError";
+              reject(error);
+              return;
+            }
+
+            // Set up abort listener
             if (signal) {
-              signal.addEventListener("abort", () => {
+              const onAbort = () => {
                 const error = new Error("The operation was aborted");
                 error.name = "AbortError";
                 reject(error);
-              });
+              };
+              signal.addEventListener("abort", onAbort);
             }
+
             // Simulate a slow response
             setTimeout(() => resolve(new Response("late")), 10000);
           })
@@ -131,8 +142,51 @@ describe("api-client", () => {
       const shortTimeout = { ...defaultConfig, timeout: 0.1 };
 
       await expect(fetchWithRetry("https://api.test.com", {}, shortTimeout)).rejects.toThrow(
-        /Request timeout after 0.1s/
+        /Request timeout after 0.1s \(4 attempts\)/
       );
+    });
+
+    test("timeout applies per attempt, not total operation", async () => {
+      // This test shows that with retries, the total operation time could be
+      // (maxRetries + 1) * timeout seconds
+      let attemptCount = 0;
+      globalThis.fetch = mock(
+        (_url, options) =>
+          new Promise((resolve, reject) => {
+            attemptCount++;
+            const signal = options?.signal as AbortSignal;
+
+            // Check if signal is already aborted
+            if (signal?.aborted) {
+              const error = new Error("The operation was aborted");
+              error.name = "AbortError";
+              reject(error);
+              return;
+            }
+
+            // Set up abort listener
+            if (signal) {
+              const onAbort = () => {
+                const error = new Error("The operation was aborted");
+                error.name = "AbortError";
+                reject(error);
+              };
+              signal.addEventListener("abort", onAbort);
+            }
+
+            // Always timeout - simulate slow API
+            setTimeout(() => resolve(new Response("late")), 10000);
+          })
+      );
+
+      const configWithRetries = { ...defaultConfig, timeout: 0.1, maxRetries: 2 };
+
+      await expect(fetchWithRetry("https://api.test.com", {}, configWithRetries)).rejects.toThrow(
+        /Request timeout after 0.1s \(3 attempts\)/
+      );
+
+      // Should have attempted 3 times (initial + 2 retries)
+      expect(attemptCount).toBe(3);
     });
 
     test("does not retry on 400 client error", async () => {

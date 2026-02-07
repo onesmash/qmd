@@ -54,7 +54,7 @@ const ApiConfigSchema = z.object({
   embedding: EmbeddingConfigSchema,
   chat: ServiceConfigSchema,
   rerank: RerankConfigSchema,
-  timeout: z.number().positive("timeout must be positive").default(30),
+  timeout: z.number().positive("timeout must be positive").default(60),
   max_retries: z.number().int().min(0, "max_retries cannot be negative").default(3),
   retry_delay: z.number().positive("retry_delay must be positive").default(1),
 });
@@ -154,24 +154,24 @@ export const CONFIG_TEMPLATE = `# QMD API Configuration
 embedding:
   base_url: https://api.siliconflow.cn/v1
   api_key: sk-YOUR_API_KEY_HERE
-  model: BAAI/bge-m3
+  model: Qwen/Qwen3-Embedding-0.6B
   dimensions: 1024  # Must match the model's output dimensions
 
 # Chat service configuration (for query expansion)
 chat:
   base_url: https://api.siliconflow.cn/v1
   api_key: sk-YOUR_API_KEY_HERE
-  model: Qwen/Qwen2.5-7B-Instruct
+  model: Pro/deepseek-ai/DeepSeek-V3.2
 
 # Rerank service configuration
 rerank:
   base_url: https://api.siliconflow.cn/v1
   api_key: sk-YOUR_API_KEY_HERE
-  model: BAAI/bge-reranker-v2-m3
+  model: Qwen/Qwen3-Reranker-0.6B
   provider: siliconflow
 
 # HTTP client settings
-timeout: 30        # Request timeout in seconds
+timeout: 60        # Request timeout in seconds
 max_retries: 3     # Maximum retry attempts for failed requests
 retry_delay: 1     # Initial retry delay in seconds (exponential backoff)
 `;

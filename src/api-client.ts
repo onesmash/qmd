@@ -89,7 +89,7 @@ export async function fetchWithRetry(
         // Check if this was a timeout (abort)
         if (error instanceof Error && error.name === "AbortError") {
           if (timeoutId) clearTimeout(timeoutId);
-          throw new Error(`Request timeout after ${config.timeout}s`);
+          // Don't throw immediately - let retry logic handle it
         }
 
         // If we're out of retries, throw
@@ -97,7 +97,7 @@ export async function fetchWithRetry(
           break;
         }
 
-        // Network error - retry with exponential backoff
+        // Network error or timeout - retry with exponential backoff
         const delay = Math.pow(2, attempt) * config.retryDelay * 1000;
         await new Promise((resolve) => setTimeout(resolve, delay));
       }
@@ -107,6 +107,11 @@ export async function fetchWithRetry(
   }
 
   // All retries exhausted
+  if (lastError instanceof Error && lastError.name === "AbortError") {
+    const totalAttempts = config.maxRetries + 1;
+    const attemptsText = totalAttempts === 1 ? "1 attempt" : `${totalAttempts} attempts`;
+    throw new Error(`Request timeout after ${config.timeout}s (${attemptsText})`);
+  }
   throw new Error(
     `Request failed after ${config.maxRetries + 1} attempts: ${lastError?.message || "Unknown error"}`
   );

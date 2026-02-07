@@ -129,22 +129,22 @@ This creates `~/.config/qmd/api.yml` with the following structure:
 embedding:
   base_url: https://api.siliconflow.cn/v1
   api_key: sk-YOUR_API_KEY_HERE
-  model: BAAI/bge-m3
+  model: Qwen/Qwen3-Embedding-0.6B
   dimensions: 1024  # Must match the model's output dimensions
 
 chat:
   base_url: https://api.siliconflow.cn/v1
   api_key: sk-YOUR_API_KEY_HERE
-  model: Qwen/Qwen2.5-7B-Instruct
+  model: Pro/deepseek-ai/DeepSeek-V3.2
 
 rerank:
   base_url: https://api.siliconflow.cn/v1
   api_key: sk-YOUR_API_KEY_HERE
-  model: BAAI/bge-reranker-v2-m3
+  model: Qwen/Qwen3-Reranker-0.6B
   provider: siliconflow
 
 # HTTP client settings
-timeout: 30        # Request timeout in seconds
+timeout: 60        # Request timeout in seconds
 max_retries: 3     # Maximum retry attempts for failed requests
 retry_delay: 1     # Initial retry delay in seconds (exponential backoff)
 ```
@@ -282,9 +282,9 @@ QMD uses cloud API services (SiliconFlow) for LLM operations:
 
 | Model | Purpose | Provider |
 |-------|---------|----------|
-| `BAAI/bge-m3` | Vector embeddings (1024 dims) | SiliconFlow |
-| `BAAI/bge-reranker-v2-m3` | Document reranking | SiliconFlow |
-| `Qwen/Qwen2.5-7B-Instruct` | Query expansion | SiliconFlow |
+| `Qwen/Qwen3-Embedding-0.6B` | Vector embeddings (1024 dims) | SiliconFlow |
+| `Qwen/Qwen3-Reranker-0.6B` | Document reranking | SiliconFlow |
+| `Pro/deepseek-ai/DeepSeek-V3.2` | Query expansion | SiliconFlow |
 
 All models are managed by the API provider (no local downloads or caching).
 
@@ -596,14 +596,14 @@ Models are configured in `~/.config/qmd/api.yml`:
 
 ```yaml
 embedding:
-  model: BAAI/bge-m3
+  model: Qwen/Qwen3-Embedding-0.6B
   dimensions: 1024
 
 chat:
-  model: Qwen/Qwen2.5-7B-Instruct
+  model: Pro/deepseek-ai/DeepSeek-V3.2
 
 rerank:
-  model: BAAI/bge-reranker-v2-m3
+  model: Qwen/Qwen3-Reranker-0.6B
   provider: siliconflow
 ```
 
@@ -625,7 +625,7 @@ Uses OpenAI Function Calling API with structured output to generate query variat
 
 ### Reranking
 
-Uses SiliconFlow's rerank API with BAAI/bge-reranker-v2-m3 model for cross-encoder reranking. Returns documents sorted by relevance score.
+Uses SiliconFlow's rerank API with Qwen/Qwen3-Reranker-0.6B model for cross-encoder reranking. Returns documents sorted by relevance score.
 
 ## License
 

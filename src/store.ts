@@ -42,11 +42,80 @@ import {
 // =============================================================================
 
 const HOME = Bun.env.HOME || "/tmp";
-export const DEFAULT_EMBED_MODEL = "embeddinggemma";
-export const DEFAULT_RERANK_MODEL = "ExpedientFalcon/qwen3-reranker:0.6b-q8_0";
-export const DEFAULT_QUERY_MODEL = "Qwen/Qwen3-1.7B";
 export const DEFAULT_GLOB = "**/*.md";
 export const DEFAULT_MULTI_GET_MAX_BYTES = 10 * 1024; // 10KB
+
+// Configuration loading utilities
+let cachedConfig: any = null;
+
+/**
+ * Load configuration with lazy loading and caching
+ */
+function loadConfig(): any {
+  if (cachedConfig) {
+    return cachedConfig;
+  }
+
+  try {
+    // Dynamic import to avoid circular dependencies
+    const { loadConfig: loadApiConfig } = require("./api-config.js");
+    cachedConfig = loadApiConfig();
+    return cachedConfig;
+  } catch (error) {
+    // If config file doesn't exist or can't be loaded, throw error
+    throw new Error(
+      `Configuration file not found or invalid: ${error instanceof Error ? error.message : String(error)}\n\n` +
+      `Run 'qmd init' to create configuration file at ~/.config/qmd/api.yml`
+    );
+  }
+}
+
+/**
+ * Get default embedding model from configuration
+ */
+export function getDefaultEmbedModel(): string {
+  try {
+    const config = loadConfig();
+    return config.embedding.model;
+  } catch (error) {
+    // Fallback to hardcoded default if config loading fails
+    console.warn(`Failed to load configuration: ${error instanceof Error ? error.message : String(error)}`);
+    return "Qwen/Qwen3-Embedding-0.6B";
+  }
+}
+
+/**
+ * Get default rerank model from configuration
+ */
+export function getDefaultRerankModel(): string {
+  try {
+    const config = loadConfig();
+    return config.rerank.model;
+  } catch (error) {
+    // Fallback to hardcoded default if config loading fails
+    console.warn(`Failed to load configuration: ${error instanceof Error ? error.message : String(error)}`);
+    return "Qwen/Qwen3-Reranker-0.6B";
+  }
+}
+
+/**
+ * Get default query model from configuration
+ */
+export function getDefaultQueryModel(): string {
+  try {
+    const config = loadConfig();
+    return config.chat.model;
+  } catch (error) {
+    // Fallback to hardcoded default if config loading fails
+    console.warn(`Failed to load configuration: ${error instanceof Error ? error.message : String(error)}`);
+    return "Pro/deepseek-ai/DeepSeek-V3.2";
+  }
+}
+
+// Export constants that read from configuration
+export const DEFAULT_EMBED_MODEL = getDefaultEmbedModel();
+export const DEFAULT_RERANK_MODEL = getDefaultRerankModel();
+export const DEFAULT_QUERY_MODEL = getDefaultQueryModel();
 
 // Chunking: 800 tokens per chunk with 15% overlap
 export const CHUNK_SIZE_TOKENS = 800;

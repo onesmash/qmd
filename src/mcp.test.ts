@@ -11,6 +11,7 @@ import * as sqliteVec from "sqlite-vec";
 import { McpServer, ResourceTemplate } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { getDefaultLlamaCpp, disposeDefaultLlamaCpp } from "./llm";
+import { DEFAULT_EMBED_MODEL, DEFAULT_QUERY_MODEL, DEFAULT_RERANK_MODEL } from "./store";
 import { mkdtemp, writeFile, readdir, unlink, rmdir } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
@@ -163,7 +164,7 @@ function seedTestData(db: Database): void {
   for (let i = 0; i < 1024; i++) embedding[i] = Math.random();
 
   for (const doc of docs.slice(0, 4)) { // Skip large file for embeddings
-    db.prepare(`INSERT INTO content_vectors (hash, seq, pos, model, embedded_at) VALUES (?, 0, 0, 'embeddinggemma', ?)`).run(doc.hash, now);
+    db.prepare(`INSERT INTO content_vectors (hash, seq, pos, model, embedded_at) VALUES (?, 0, 0, ?, ?)`).run(doc.hash, DEFAULT_EMBED_MODEL, now);
     db.prepare(`INSERT INTO vectors_vec (hash_seq, embedding) VALUES (?, ?)`).run(`${doc.hash}_0`, embedding);
   }
 }
@@ -187,9 +188,6 @@ import {
   getDocumentBody,
   findDocuments,
   getStatus,
-  DEFAULT_EMBED_MODEL,
-  DEFAULT_QUERY_MODEL,
-  DEFAULT_RERANK_MODEL,
   DEFAULT_MULTI_GET_MAX_BYTES,
   createStore,
 } from "./store";
