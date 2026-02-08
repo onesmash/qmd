@@ -13,4 +13,3 @@ texts/
 finetune/outputs/
 finetune/data/train/
 .claude/
-bun.lock
