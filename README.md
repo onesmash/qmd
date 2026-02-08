@@ -93,7 +93,7 @@ Although the tool works perfectly fine when you just tell your agent to use it o
 **Claude Code** — Install the plugin (recommended):
 
 ```bash
-claude marketplace add tobi/qmd
+claude marketplace add onesmash/qmd
 claude plugin add qmd@qmd
 ```
 
@@ -291,7 +291,7 @@ All models are managed by the API provider (no local downloads or caching).
 ## Installation
 
 ```sh
-bun install -g github:tobi/qmd
+bun install -g github:onesmash/qmd
 ```
 
 Make sure `~/.bun/bin` is in your PATH.
