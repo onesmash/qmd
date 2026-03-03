@@ -38,9 +38,13 @@ qmd multi-get <pattern>           # Get multiple docs by glob or comma-separated
 qmd status                        # Show index status and collections
 qmd update [--pull]               # Re-index all collections (--pull: git pull first)
 qmd embed                         # Generate vector embeddings (uses cloud API)
-qmd search <query>                # BM25 full-text search
-qmd vsearch <query>               # Vector similarity search
-qmd query <query>                 # Hybrid search with reranking (best quality)
+qmd query <query>                 # Search with query expansion + reranking (recommended)
+qmd search <query>                # Full-text keyword search (BM25, no LLM)
+qmd vsearch <query>               # Vector similarity search (no reranking)
+qmd mcp                           # Start MCP server (stdio transport)
+qmd mcp --http [--port N]         # Start MCP server (HTTP, default port 8181)
+qmd mcp --http --daemon           # Start as background daemon
+qmd mcp stop                      # Stop background MCP daemon
 ```
 
 ## Collection Management
@@ -137,13 +141,47 @@ bun src/qmd.ts <command>   # Run from source
 bun link               # Install globally as 'qmd'
 ```
 
+## Tests
+
+All tests live in `test/`. Run everything:
+
+```sh
+npx vitest run --reporter=verbose test/
+bun test --preload ./src/test-preload.ts test/
+```
+
 ## Architecture
 
 - SQLite FTS5 for full-text search (BM25)
 - sqlite-vec for vector similarity search
 - Cloud API (SiliconFlow) for embeddings, reranking, and query expansion
 - Reciprocal Rank Fusion (RRF) for combining results
-- Token-based chunking: 800 tokens/chunk with 15% overlap
+- Smart chunking: 900 tokens/chunk with 15% overlap, prefers markdown headings as boundaries
+
+## Configuration
+
+QMD requires API configuration. Run `qmd init` to create `~/.config/qmd/api.yml`:
+
+```yaml
+embedding:
+  base_url: https://api.siliconflow.cn/v1
+  api_key: sk-YOUR_API_KEY_HERE
+  model: Qwen/Qwen3-Embedding-0.6B
+  dimensions: 1024
+
+chat:
+  base_url: https://api.siliconflow.cn/v1
+  api_key: sk-YOUR_API_KEY_HERE
+  model: Pro/deepseek-ai/DeepSeek-V3.2
+
+rerank:
+  base_url: https://api.siliconflow.cn/v1
+  api_key: sk-YOUR_API_KEY_HERE
+  model: Qwen/Qwen3-Reranker-0.6B
+  provider: siliconflow
+```
+
+Get your API key from [SiliconFlow](https://cloud.siliconflow.cn/).
 
 ## Important: Do NOT run automatically
 
@@ -155,4 +193,17 @@ bun link               # Install globally as 'qmd'
 ## Do NOT compile
 
 - Never run `bun build --compile` - it overwrites the shell wrapper and breaks sqlite-vec
-- The `qmd` file is a shell script that runs `bun src/qmd.ts` - do not replace it
+- The `qmd` file is a shell script that runs compiled JS from `dist/` - do not replace it
+- `npm run build` compiles TypeScript to `dist/` via `tsc -p tsconfig.build.json`
+
+## Releasing
+
+Use `/release <version>` to cut a release. Full changelog standards,
+release workflow, and git hook setup are documented in the
+[release skill](skills/release/SKILL.md).
+
+Key points:
+- Add changelog entries under `## [Unreleased]` **as you make changes**
+- The release script renames `[Unreleased]` → `[X.Y.Z] - date` at release time
+- Credit external PRs with `#NNN (thanks @username)`
+- GitHub releases roll up the full minor series (e.g. 1.2.0 through 1.2.3)

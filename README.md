@@ -2,26 +2,32 @@
 
 An on-device search engine for everything you need to remember. Index your markdown notes, meeting transcripts, documentation, and knowledge bases. Search with keywords or natural language. Ideal for your agentic flows.
 
-QMD combines BM25 full-text search, vector semantic search, and LLM reranking using cloud API services (SiliconFlow).
+QMD combines BM25 full-text search, vector semantic search, and LLM re-ranking using cloud API services (SiliconFlow).
 
-> **⚠️ Breaking Change:** QMD now uses cloud APIs instead of local models. This requires API configuration. See [Configuration](#configuration) below.
+> **Note:** This fork uses cloud APIs instead of local models. See [Configuration](#configuration) below.
+
+![QMD Architecture](assets/qmd-architecture.png)
+
+You can read more about QMD's progress in the [CHANGELOG](CHANGELOG.md).
 
 ## Quick Start
 
 ```sh
-# Install globally
-bun install -g https://github.com/onesmash/qmd
+# Install globally (Node or Bun)
+npm install -g @tobilu/qmd
+# or
+bun install -g @tobilu/qmd
 
-# Configure API access (required)
-qmd init
-# Then edit ~/.config/qmd/api.yml with your SiliconFlow API key
+# Or run directly
+npx @tobilu/qmd ...
+bunx @tobilu/qmd ...
 
 # Create collections for your notes, docs, and meeting transcripts
 qmd collection add ~/notes --name notes
 qmd collection add ~/Documents/meetings --name meetings
 qmd collection add ~/work/docs --name docs
 
-# Add context to help with search results
+# Add context to help with search results, each piece of context will be returned when matching sub documents are returned. This works as a tree. This is the key feature of QMD as it allows LLMs to make much better contextual choices when selecting documents. Don't sleep on it!
 qmd context add qmd://notes "Personal notes and ideas"
 qmd context add qmd://meetings "Meeting transcripts and notes"
 qmd context add qmd://docs "Work documentation"
@@ -71,8 +77,8 @@ Although the tool works perfectly fine when you just tell your agent to use it o
 
 **Tools exposed:**
 - `qmd_search` - Fast BM25 keyword search (supports collection filter)
-- `qmd_vsearch` - Semantic vector search (supports collection filter)
-- `qmd_query` - Hybrid search with reranking (supports collection filter)
+- `qmd_vector_search` - Semantic vector search (supports collection filter)
+- `qmd_deep_search` - Deep search with query expansion and reranking (supports collection filter)
 - `qmd_get` - Retrieve document by path or docid (with fuzzy matching suggestions)
 - `qmd_multi_get` - Retrieve multiple documents by glob pattern, list, or docids
 - `qmd_status` - Index health and collection info
@@ -93,7 +99,7 @@ Although the tool works perfectly fine when you just tell your agent to use it o
 **Claude Code** — Install the plugin (recommended):
 
 ```bash
-claude marketplace add onesmash/qmd
+claude marketplace add tobi/qmd
 claude plugin add qmd@qmd
 ```
 
@@ -110,63 +116,28 @@ Or configure MCP manually in `~/.claude/settings.json`:
 }
 ```
 
-## Configuration
+#### HTTP Transport
 
-QMD requires API configuration to access cloud services for embeddings, query expansion, and reranking.
-
-### Initial Setup
-
-Run `qmd init` to create a configuration template:
+By default, QMD's MCP server uses stdio (launched as a subprocess by each client). For a shared, long-lived server that avoids repeated model loading, use the HTTP transport:
 
 ```sh
-qmd init
+# Foreground (Ctrl-C to stop)
+qmd mcp --http                    # localhost:8181
+qmd mcp --http --port 8080        # custom port
+
+# Background daemon
+qmd mcp --http --daemon           # start, writes PID to ~/.cache/qmd/mcp.pid
+qmd mcp stop                      # stop via PID file
+qmd status                        # shows "MCP: running (PID ...)" when active
 ```
 
-This creates `~/.config/qmd/api.yml` with the following structure:
+The HTTP server exposes two endpoints:
+- `POST /mcp` — MCP Streamable HTTP (JSON responses, stateless)
+- `GET /health` — liveness check with uptime
 
-```yaml
-# QMD API Configuration
-embedding:
-  base_url: https://api.siliconflow.cn/v1
-  api_key: sk-YOUR_API_KEY_HERE
-  model: Qwen/Qwen3-Embedding-0.6B
-  dimensions: 1024  # Must match the model's output dimensions
+Cloud API requests are stateless. No local model loading required.
 
-chat:
-  base_url: https://api.siliconflow.cn/v1
-  api_key: sk-YOUR_API_KEY_HERE
-  model: Pro/deepseek-ai/DeepSeek-V3.2
-
-rerank:
-  base_url: https://api.siliconflow.cn/v1
-  api_key: sk-YOUR_API_KEY_HERE
-  model: Qwen/Qwen3-Reranker-0.6B
-  provider: siliconflow
-
-# HTTP client settings
-timeout: 60        # Request timeout in seconds
-max_retries: 3     # Maximum retry attempts for failed requests
-retry_delay: 1     # Initial retry delay in seconds (exponential backoff)
-```
-
-### Get Your API Key
-
-1. Sign up at [SiliconFlow](https://cloud.siliconflow.cn/)
-2. Get your API key from the dashboard
-3. Replace `sk-YOUR_API_KEY_HERE` in `~/.config/qmd/api.yml`
-
-### Migration from Local Models
-
-**Breaking Change:** QMD no longer uses node-llama-cpp or local GGUF models. All inference now happens via cloud APIs.
-
-If you're upgrading from a previous version:
-
-1. Run `qmd init` to create configuration file
-2. Add your API credentials
-3. Run `qmd embed` to regenerate embeddings (existing embeddings may be incompatible if model dimensions differ)
-4. Existing BM25 search continues working without re-indexing
-
-The `qmd pull` command has been removed (models are now managed by the API provider).
+Point any MCP client at `http://localhost:8181/mcp` to connect.
 
 ## Architecture
 
@@ -270,6 +241,7 @@ The `query` command uses **Reciprocal Rank Fusion (RRF)** with position-aware bl
 
 ### System Requirements
 
+- **Node.js** >= 22
 - **Bun** >= 1.0.0
 - **macOS**: Homebrew SQLite (for extension support)
   ```sh
@@ -288,21 +260,46 @@ QMD uses cloud API services (SiliconFlow) for LLM operations:
 
 All models are managed by the API provider (no local downloads or caching).
 
+## Configuration
+
+QMD requires API configuration. Run `qmd init` to create `~/.config/qmd/api.yml`:
+
+```yaml
+embedding:
+  base_url: https://api.siliconflow.cn/v1
+  api_key: sk-YOUR_API_KEY_HERE
+  model: Qwen/Qwen3-Embedding-0.6B
+  dimensions: 1024
+
+chat:
+  base_url: https://api.siliconflow.cn/v1
+  api_key: sk-YOUR_API_KEY_HERE
+  model: Pro/deepseek-ai/DeepSeek-V3.2
+
+rerank:
+  base_url: https://api.siliconflow.cn/v1
+  api_key: sk-YOUR_API_KEY_HERE
+  model: Qwen/Qwen3-Reranker-0.6B
+  provider: siliconflow
+```
+
+Get your API key from [SiliconFlow](https://cloud.siliconflow.cn/).
+
 ## Installation
 
 ```sh
-bun install -g github:onesmash/qmd
+npm install -g @tobilu/qmd
+# or
+bun install -g @tobilu/qmd
 ```
-
-Make sure `~/.bun/bin` is in your PATH.
 
 ### Development
 
 ```sh
-git clone https://github.com/onesmash/qmd
+git clone https://github.com/tobi/qmd
 cd qmd
-bun install
-bun link
+npm install
+npm link
 ```
 
 ## Usage
@@ -333,7 +330,7 @@ qmd ls notes/subfolder
 ### Generate Vector Embeddings
 
 ```sh
-# Embed all indexed documents (800 tokens/chunk, 15% overlap)
+# Embed all indexed documents (900 tokens/chunk, 15% overlap)
 qmd embed
 
 # Force re-embed everything
@@ -510,7 +507,7 @@ collections     -- Indexed directories with name and glob patterns
 path_contexts   -- Context descriptions by virtual path (qmd://...)
 documents       -- Markdown content with metadata and docid (6-char hash)
 documents_fts   -- FTS5 full-text index
-content_vectors -- Embedding chunks (hash, seq, pos, 800 tokens each)
+content_vectors -- Embedding chunks (hash, seq, pos, 900 tokens each)
 vectors_vec     -- sqlite-vec vector index (hash_seq key)
 llm_cache       -- Cached LLM responses (query expansion, rerank scores)
 ```
@@ -540,17 +537,48 @@ Collection ──► Glob Pattern ──► Markdown Files ──► Parse Title
 
 ### Embedding Flow
 
-Documents are chunked into 800-token pieces with 15% overlap:
+Documents are chunked into ~900-token pieces with 15% overlap using smart boundary detection:
 
 ```
-Document ──► Chunk (800 tokens) ──► Format each chunk ──► API Client ──► Store Vectors
-                │                    "title | text"        embedBatch()
+Document ──► Smart Chunk (~900 tokens) ──► Format each chunk ──► node-llama-cpp ──► Store Vectors
+                │                           "title | text"        embedBatch()
                 │
                 └─► Chunks stored with:
                     - hash: document hash
                     - seq: chunk sequence (0, 1, 2...)
                     - pos: character position in original
 ```
+
+### Smart Chunking
+
+Instead of cutting at hard token boundaries, QMD uses a scoring algorithm to find natural markdown break points. This keeps semantic units (sections, paragraphs, code blocks) together.
+
+**Break Point Scores:**
+
+| Pattern | Score | Description |
+|---------|-------|-------------|
+| `# Heading` | 100 | H1 - major section |
+| `## Heading` | 90 | H2 - subsection |
+| `### Heading` | 80 | H3 |
+| `#### Heading` | 70 | H4 |
+| `##### Heading` | 60 | H5 |
+| `###### Heading` | 50 | H6 |
+| ` ``` ` | 80 | Code block boundary |
+| `---` / `***` | 60 | Horizontal rule |
+| Blank line | 20 | Paragraph boundary |
+| `- item` / `1. item` | 5 | List item |
+| Line break | 1 | Minimal break |
+
+**Algorithm:**
+
+1. Scan document for all break points with scores
+2. When approaching the 900-token target, search a 200-token window before the cutoff
+3. Score each break point: `finalScore = baseScore × (1 - (distance/window)² × 0.7)`
+4. Cut at the highest-scoring break point
+
+The squared distance decay means a heading 200 tokens back (score ~30) still beats a simple line break at the target (score 1), but a closer heading wins over a distant one.
+
+**Code Fence Protection:** Break points inside code blocks are ignored—code stays together. If a code block exceeds the chunk size, it's kept whole when possible.
 
 ### Query Flow (Hybrid)
 
